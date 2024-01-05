@@ -1,11 +1,10 @@
 import os.path as osp
 import pandas as pd
 from tqdm import tqdm
-from vlmeval.api import OpenAIWrapper, OpenAIWrapperInternal
 from vlmeval.utils import can_infer, track_progress_rich, TSVDataset
 from vlmeval.smp import *
 import numpy as np
-
+from GPTFactory import GPT, LimitationChecker
 INTERNAL = os.environ.get('INTERNAL', 0)
 
 abbrs = {
@@ -125,8 +124,8 @@ def extract_answer_from_item(model, item):
         return dict(opt=ret, log=item['prediction'])
     
     while retry:
-        ans = model.generate(prompt)
-        if 'Failed to obtain answer via API' in ans:
+        ans = model.complete(prompt)
+        if ans is None:
             msg = 'GPT API failed to answer. '
             logger.warning(msg)
             retry -= 1
@@ -238,11 +237,11 @@ def multiple_choice_eval(eval_file, dataset=None, model='chatgpt-0613', nproc=4,
     if model == 'exact_matching':
         model = None
     else:
-        model_name = 'gpt-3.5-turbo-0613'
-        if INTERNAL:
-            model = OpenAIWrapperInternal(model_name, verbose=verbose, retry=10)
-        else:
-            model = OpenAIWrapper(model_name, verbose=verbose, retry=10)
+        model_name = "gpt-35-turbo"
+        api_key = os.environ.get('OPENAI_API_KEY')
+        end_point = os.environ.get('OPENAI_ENDPOINT')
+        limitation_checker = LimitationChecker(token_rate_limit=300000,request_rate_limit=1800)
+        model = GPT(model_name,service='azure', api_key=api_key, end_point=end_point,temperature=0,top_p=1.0)
     
     logger.info(f'Evaluating {eval_file}')
     result_file = eval_file.replace(f'.{suffix}', f'_{name_str}_result.pkl')

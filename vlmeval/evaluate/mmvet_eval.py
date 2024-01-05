@@ -1,8 +1,6 @@
-from vlmeval.api import OpenAIWrapper, OpenAIWrapperInternal
+from GPTFactory import GPT, LimitationChecker
 from vlmeval.smp import *
 from vlmeval.utils import track_progress_rich
-
-INTERNAL = os.environ.get('INTERNAL', 0)
 
 def build_mmvet_gpt4_prompt(line):
     question = line['question']
@@ -34,7 +32,7 @@ def MMVet_auxeval(model, line):
     log = ''
     retry = 5
     for i in range(retry):
-        output = model.generate(prompt, temperature=i * 0.5)
+        output = model.complete(prompt, temperature=i * 0.5)
         score = float_cvt(output)
         if score is None:
             log += f'Try {i}: output is {output}, failed to parse.\n'
@@ -105,11 +103,10 @@ def MMVet_eval(eval_file, model='gpt-4-turbo', nproc=4, verbose=False):
         }
         model_version = model_map[gpt_version]
 
-        if INTERNAL:
-            # We follow the original codebase to set max_tokens == 3
-            model = OpenAIWrapperInternal(model_version, verbose=verbose, max_tokens=3, retry=10)
-        else:
-            model = OpenAIWrapper(model_version, verbose=verbose, max_tokens=3, retry=10)
+        api_key = os.environ.get('OPENAI_API_KEY')
+        end_point = os.environ.get('OPENAI_ENDPOINT')
+        limitation_checker = LimitationChecker(token_rate_limit=300000,request_rate_limit=1800)
+        model = GPT(model_version,service='azure', api_key=api_key, end_point=end_point,temperature=0,top_p=1.0,max_tokens=3)
         
         lt = len(data)
         lines = [data.iloc[i] for i in range(lt)]
