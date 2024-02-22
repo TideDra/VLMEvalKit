@@ -14,7 +14,6 @@ google-generativeai
 einops
 sentencepiece
 termcolor
-SwissArmyTransformer 
 huggingface_hub
 visual_genome
 wandb
